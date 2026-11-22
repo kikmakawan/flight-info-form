@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flight Information Form</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --red:#e3262b; --red-d:#b81c20; --ink:#1d1d1f; --mute:#6b6b70;
+    --line:#e6e6ea; --bg:#f4f4f6; --card:#fff;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"IBM Plex Sans Thai",system-ui,-apple-system,sans-serif;-webkit-text-size-adjust:100%}
+  header{position:sticky;top:0;z-index:5;background:var(--red);color:#fff;
+    padding:12px 16px 0;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+  header h1{margin:0 0 10px;font-size:18px;font-weight:600;text-align:center;letter-spacing:.2px}
+  .tabs{display:flex;gap:4px}
+  .tab{flex:1;border:0;background:transparent;color:rgba(255,255,255,.75);font:inherit;font-size:15px;
+    padding:10px 0;border-bottom:3px solid transparent;cursor:pointer}
+  .tab.on{color:#fff;border-bottom-color:#fff;font-weight:600}
+  main{max-width:640px;margin:0 auto;padding:14px 12px 110px}
+  .view{display:none}.view.on{display:block}
+
+  /* ---------- edit view ---------- */
+  .sec{background:var(--card);border-radius:14px;margin-bottom:12px;overflow:hidden;
+    box-shadow:0 1px 2px rgba(0,0,0,.05)}
+  .sec h2{margin:0;background:var(--red);color:#fff;font-size:15px;font-weight:600;padding:9px 14px}
+  .sec .body{padding:12px 14px 6px}
+  .grid{display:grid;gap:10px;margin-bottom:10px}
+  .g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr 1fr}
+  label{display:block;font-size:12px;color:var(--mute);margin-bottom:3px}
+  input,textarea{width:100%;font:inherit;font-size:16px;color:var(--ink);background:#fafafb;
+    border:1px solid var(--line);border-radius:9px;padding:9px 10px;outline:none}
+  input:focus,textarea:focus{border-color:var(--red);background:#fff}
+  textarea{min-height:64px;resize:vertical}
+  .leg{border-top:1px dashed var(--line);padding-top:10px;margin-top:2px}
+  .leg:first-child{border-top:0;padding-top:0}
+  .leg-t{font-size:13px;font-weight:600;color:var(--red-d);margin-bottom:6px}
+  .fno{display:flex;align-items:center;gap:6px}
+  .fno span{font-weight:600}
+  .crew{display:grid;grid-template-columns:64px 1fr 92px;gap:6px;margin-bottom:6px}
+  .crew input{padding:8px}
+  .crew-h{display:grid;grid-template-columns:64px 1fr 92px;gap:6px;font-size:12px;color:var(--mute);margin-bottom:3px}
+  .chips{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:10px}
+  .chip{border:1px solid var(--line);background:#fafafb;border-radius:9px;padding:9px 0;font:inherit;
+    font-size:14px;font-weight:600;color:var(--ink);cursor:pointer}
+  .chip.vz{grid-column:span 2;background:#fff5f5;border-color:#f3c1c3;color:var(--red-d)}
+  .chip.on{background:var(--red);border-color:var(--red);color:#fff}
+  .acinfo{background:#fff5f5;border:1px solid #f6d3d4;border-radius:10px;padding:9px 11px;font-size:13px;
+    line-height:1.5;margin-bottom:12px;display:none}
+  .acinfo.on{display:block}
+  .acinfo b{color:var(--red-d)}
+  .upl{display:flex;align-items:center;justify-content:center;gap:6px;border:2px dashed #f0b3b5;border-radius:12px;
+    padding:16px;color:var(--red-d);font-weight:600;font-size:15px;cursor:pointer;background:#fff8f8;margin-bottom:10px}
+  #thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .th{position:relative;width:64px;height:110px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+  .th img{width:100%;height:100%;object-fit:cover}
+  .th button{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;border:0;
+    background:rgba(0,0,0,.6);color:#fff;font-size:13px;line-height:22px;padding:0;cursor:pointer}
+  #bRead{width:100%;max-width:none;margin-bottom:8px}
+  #bRead:disabled{opacity:.5}
+  #readMsg{font-size:13px;color:var(--mute);min-height:18px;margin-bottom:6px;white-space:pre-line}
+  #readMsg.err{color:var(--red-d)}
+  .hint{font-size:12px;color:var(--mute);margin:-2px 0 10px}
+
+  /* ---------- action bar ---------- */
+  .bar{position:fixed;left:0;right:0;bottom:0;z-index:6;background:#fff;border-top:1px solid var(--line);
+    padding:10px 12px calc(10px + env(safe-area-inset-bottom));display:flex;gap:8px;justify-content:center}
+  .btn{flex:1;max-width:200px;border:0;border-radius:11px;padding:12px 8px;font:inherit;font-size:15px;
+    font-weight:600;cursor:pointer}
+  .btn.p{background:var(--red);color:#fff}
+  .btn.s{background:#f0f0f3;color:var(--ink)}
+  .btn:active{transform:scale(.98)}
+  .toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:#222;color:#fff;
+    padding:9px 16px;border-radius:20px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:9}
+  .toast.on{opacity:.95}
+
+  /* ---------- dialog ---------- */
+  .dlg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:10;padding:20px}
+  .dlg.on{display:flex}
+  .dlg-c{background:#fff;border-radius:16px;padding:18px;max-width:340px;width:100%}
+  .dlg-c p{margin:0 0 14px;font-size:15px}
+  .dlg-c .row{display:flex;gap:8px}
+
+  /* ---------- paper form ---------- */
+  .paper-wrap{overflow:hidden;background:#fff;border-radius:12px;padding:10px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+  #paper{width:560px;background:#fff;padding:14px;color:#000;
+    font-family:Arial,"IBM Plex Sans Thai",sans-serif}
+  #paper table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px}
+  #paper td{border:1px solid #000;padding:3px 5px;height:24px;vertical-align:middle;
+    overflow:hidden;white-space:nowrap;text-overflow:clip}
+  #paper .t{text-align:center;font-weight:bold;font-size:14px}
+  #paper .c{text-align:center}
+  #paper .v{font-weight:bold;color:#0b3a8c}
+  #paper .tall{height:84px;vertical-align:top;white-space:pre-wrap}
+  #paper .sp{vertical-align:top;white-space:pre-wrap}
+  .zoomnote{font-size:12px;color:var(--mute);text-align:center;margin:8px 0 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>✈︎ Flight Information Form</h1>
+  <div class="tabs">
+    <button class="tab on" data-v="edit">กรอกข้อมูล</button>
+    <button class="tab" data-v="preview">ดูฟอร์ม</button>
+  </div>
+</header>
+
+<main>
+  <!-- ================= EDIT ================= -->
+  <section id="edit" class="view on">
+    <div class="sec" id="aiSec"><h2>📷 กรอกจากรูป</h2><div class="body">
+      <p class="hint">อัปภาพหน้าจอ <b>Duty Detail</b> (เวลา/เที่ยวบิน/เครื่อง) และ <b>Flight Detail</b> (รายชื่อลูกเรือ) ได้หลายรูปพร้อมกัน แล้วกดอ่านรูป ระบบจะกรอก Date, Report, Sectors, Cockpit, Crew และอุปกรณ์ตามเครื่องให้</p>
+      <label class="upl"><input type="file" id="imgIn" accept="image/jpeg,image/png,image/webp" multiple hidden>＋ เลือกรูป</label>
+      <div id="thumbs"></div>
+      <button class="btn p" id="bRead" disabled>อ่านรูปและกรอกอัตโนมัติ</button>
+      <div id="readMsg"></div>
+    </div></div>
+
+    <div class="sec"><h2>Duty</h2><div class="body">
+      <div class="grid g2">
+        <div><label>Date</label><input data-k="date" placeholder="22/11/2026"></div>
+        <div><label>Report Time</label><input data-k="report" class="tm" inputmode="numeric" placeholder="06:00"></div>
+      </div>
+      <div class="grid g2">
+        <div><label>Gate</label><input data-k="gate"></div>
+        <div><label>Money</label><input data-k="money"></div>
+      </div>
+    </div></div>
+
+    <div class="sec"><h2>Aircraft &amp; Equipment</h2><div class="body">
+      <p class="hint">แตะเลือกเครื่อง อุปกรณ์จะใส่ให้อัตโนมัติ (แก้ไขเองได้)</p>
+      <div class="chips" id="chips"></div>
+      <div class="grid"><div><label>A/C</label><input data-k="ac" id="acIn" placeholder="HS-VKS หรือ VZ-xxx" autocapitalize="characters"></div></div>
+      <div class="acinfo" id="acinfo"></div>
+      <div class="grid g3">
+        <div><label>HAL</label><input data-k="hal"></div>
+        <div><label>PBE</label><input data-k="pbe"></div>
+        <div><label>POB</label><input data-k="pob"></div>
+      </div>
+      <div class="grid g3">
+        <div><label>ELT</label><input data-k="elt"></div>
+        <div><label>F</label><input data-k="f"></div>
+        <div><label>Slide</label><input data-k="slide"></div>
+      </div>
+      <div class="grid g2">
+        <div><label>LV</label><input data-k="lv"></div>
+        <div><label>ILV</label><input data-k="ilv"></div>
+      </div>
+      <div class="grid"><div><label>Safety Card</label><input data-k="card"></div></div>
+    </div></div>
+
+    <div class="sec"><h2>Sectors</h2><div class="body" id="legs"></div></div>
+
+    <div class="sec"><h2>Cockpit</h2><div class="body">
+      <div class="grid"><div><label>CAPT</label><input data-k="capt"></div></div>
+      <div class="grid"><div><label>FO</label><input data-k="fo"></div></div>
+    </div></div>
+
+    <div class="sec"><h2>Crew / Position</h2><div class="body">
+      <div class="crew-h"><span>Pos.</span><span>Name</span><span>ID</span></div>
+      <div id="crew"></div>
+      <div class="grid" style="margin-top:8px"><div><label>Special</label><textarea data-k="special"></textarea></div></div>
+    </div></div>
+
+
+    <div class="sec"><h2>Notes</h2><div class="body">
+      <div class="grid"><div><label>SEC1</label><textarea data-k="sec1"></textarea></div></div>
+      <div class="grid"><div><label>SEC2</label><textarea data-k="sec2"></textarea></div></div>
+      <div class="grid"><div><label>SEC3</label><textarea data-k="sec3"></textarea></div></div>
+      <div class="grid"><div><label>SEC4</label><textarea data-k="sec4"></textarea></div></div>
+    </div></div>
+  </section>
+
+  <!-- ================= PREVIEW ================= -->
+  <section id="preview" class="view">
+    <div class="paper-wrap" id="pw"><div id="scaler"><div id="paper"></div></div></div>
+    <p class="zoomnote">ไฟล์ที่บันทึกจะเป็นขนาดเต็ม ความละเอียดสูง</p>
+  </section>
+</main>
+
+<div class="bar">
+  <button class="btn s" id="bNew">ฟอร์มใหม่</button>
+  <button class="btn p" id="bPng">บันทึกรูป</button>
+  <button class="btn p" id="bPdf">บันทึก PDF</button>
+</div>
+<div class="toast" id="toast"></div>
+<div class="dlg" id="dlg"><div class="dlg-c">
+  <p>ล้างข้อมูลทั้งหมดเพื่อเริ่มฟอร์มใหม่?</p>
+  <div class="row"><button class="btn s" id="dNo">ยกเลิก</button><button class="btn p" id="dYes">ล้างข้อมูล</button></div>
+</div></div>
+
+<script>
+const KEY = "flightInfoForm.v1";
+const LEGS = 4, CREW = 7;
+
+function blank(){
+  return {date:"",report:"",ac:"",gate:"",money:"",capt:"",fo:"",
+    legs:Array.from({length:LEGS},()=>({no:"",des:"",std:"",dep:"",arr:"",pax:""})),
+    crew:Array.from({length:CREW},(_,i)=>({pos:i===0?"PUR.":"",name:"",id:""})),
+    special:"",card:"",hal:"",pbe:"",pob:"",elt:"",f:"",slide:"",lv:"",ilv:"",sec1:"",sec2:"",sec3:"",sec4:""};
+}
+
+let S;
+try { S = JSON.parse(localStorage.getItem(KEY)) || null; } catch(e){ S = null; }
+if(!S) S = blank();
+/* ---------- fleet equipment ----------
+   Sources: CCD Aircraft Information list, VK- equipment table, safety-equipment table,
+   MTC2026-07 (safety cards effective 01 AUG 2026). */
+const FLEET = {
+ A:{type:"A320-200 Y180",hal:"BCF",pbe:"DRAGER",pob:"SCOTT (2 OL)",elt:"Rescue406",slide:"Escape",f:"DME",lv:"2 Ch. w/whistle",ilv:"2 Ch.",card:"Circle (Blue)",rmk:'"Welcome to Thailand" sticker'},
+ B:{type:"A320-200 Y180",hal:"Air Total",pbe:"SCOTT",pob:"SCOTT (2 OL)",elt:"KANNAD406",slide:"Raft w/ life raft",f:"AIR LIGHT",lv:"2 Ch. w/whistle",ilv:"2 Ch.",card:"Square (Yellow) Rev.00",rmk:'Life raft AFT galley · "Amazing Thailand" sticker'},
+ C:{type:"A320-200 Y180",hal:"Air Total",pbe:"SCOTT",pob:"SCOTT (2 OL)",elt:"KANNAD406",slide:"Raft w/ life raft",f:"AIR LIGHT",lv:"2 Ch. w/whistle",ilv:"2 Ch.",card:"Square (Yellow) Rev.00",rmk:"Life raft AFT galley"},
+ D:{type:"A320-200 Y180",hal:"KIDDIE 1211",pbe:"SCOTT",pob:"POCA (1 OL)",elt:"KANNAD406",slide:"Escape",f:"AIR LIGHT",lv:"2 Ch. w/whistle",ilv:"2 Ch.",card:"Circle (Yellow) Rev.00"},
+ E:{type:"A320-200 Y180",hal:"KIDDIE 1211",pbe:"SCOTT",pob:"POCA (1 OL)",elt:"Rescue406 SE",slide:"Escape",f:"AIR LIGHT",lv:"2 Ch. w/whistle",ilv:"2 Ch.",card:"Circle (Blue)",rmk:"SkyBoss sticker"},
+ F:{type:"A320-200 Y180",hal:"KIDDIE 1211",pbe:"SCOTT",pob:"POCA (1 OL)",elt:"KANNAD406 SE",slide:"Escape",f:"AIR LIGHT",lv:"2 Ch. w/whistle",ilv:"2 Ch.",card:"Circle (Blue)"},
+ G:{type:"A321-200 Y230",hal:"Air Total",pbe:"SCOTT",pob:"SCOTT (1 OL)",elt:"KANNAD406",slide:"Raft w/ life raft (D1/D4 SR)",f:"AIR LIGHT",lv:"2 Ch. w/whistle",ilv:"2 Ch.",card:"Triangle (Yellow) Rev.00",rmk:"Life raft FWD/AFT galley"},
+ H:{type:"A321-200 Y230",hal:"Air Total",pbe:"SCOTT",pob:"SCOTT (1 OL)",elt:"KANNAD406",slide:"Raft w/ life raft (D1/D4 SR)",f:"AIR LIGHT",lv:"2 Ch. w/whistle",ilv:"2 Ch.",card:"Triangle (Yellow) Rev.00"},
+ J:{type:"A321-200 Y230",hal:"HAFEX",pbe:"SCOTT",pob:"AVOX (1 OL)",elt:"KANNAD406",slide:"Raft w/ life raft (D1/D4 SR)",f:"AIR LIGHT",lv:"1 Ch. w/whistle",ilv:"1 Ch. w/whistle",card:"Diamond (Blue) Rev.01",rmk:"Life raft FWD/AFT galley"},
+ L:{type:"A321-200 Y208",hal:"HAFEX",pbe:"AIR LIQUID",pob:"AVOX (1 OL)",elt:"TECHTEST",slide:"Raft w/ life raft (D1/D4 SR)",f:"DME",lv:"1 Ch.",ilv:"Apron",card:"Hexagon (Yellow) Rev.00",rmk:"Life raft OHB · WOW"},
+ M:{type:"A321-200 Y208",hal:"HAFEX",pbe:"AIR LIQUID",pob:"POCA & AVOX (1 OL)",elt:"TECHTEST",slide:"Raft w/ life raft (D1/D4 SR)",f:"DME",lv:"1 Ch.",ilv:"Apron",card:"Hexagon (Yellow) Rev.00",rmk:"Life raft OHB · WOW"},
+ N:{type:"A320-200 Y180",hal:"Air Total",pbe:"AEROSPACE",pob:"SCOTT (2 OL)",elt:"KANNAD406 AS",slide:"Raft w/o life raft",f:"AIR LIGHT",lv:"2 Ch. w/whistle",ilv:"2 Ch.",card:"Star (Blue)"},
+ O:{type:"A320-200 Y180",hal:"Air Total",pbe:"AEROSPACE",pob:"SCOTT (2 OL)",elt:"KANNAD406 AS",slide:"Raft w/o life raft",f:"AIR LIGHT",lv:"2 Ch. w/whistle",ilv:"2 Ch.",card:"Star (Blue)"},
+ P:{type:"A320-200 Y180",hal:"Air Total",pbe:"AEROSPACE",pob:"SCOTT (2 OL)",elt:"KANNAD406 AS",slide:"Escape",f:"AIR LIGHT",lv:"2 Ch. w/whistle",ilv:"2 Ch.",card:"Circle (Blue)"},
+ Q:{type:"A320-200 Y180",hal:"Air Total",pbe:"AEROSPACE",pob:"SCOTT (2 OL)",elt:"KANNAD406 AS",slide:"Escape",f:"AIR LIGHT",lv:"2 Ch. w/whistle",ilv:"2 Ch.",card:"Circle (Blue)"},
+ R:{type:"A321-200 Y220",hal:"Air Total",pbe:"DRAGER",pob:"AVOX (1 OL)",elt:"TECHTEST",slide:"Escape (D1–D4 ES)",f:"DME NO/OFF",lv:"1 Ch. w/whistle",ilv:"1 Ch. w/whistle",card:"Plus (White) Rev.02",rmk:"ILV same as VKJ"},
+ S:{type:"A320-200 Y180",hal:"Air Total",pbe:"ESSEX",pob:"AVOX (1 OL)",elt:"Rescue406",slide:"Raft w/o life raft",f:"AIR LIGHT",lv:"1 Ch.",ilv:"1 Ch. w/whistle",card:"Semi-circle (Blue) Rev.01"},
+ T:{type:"A320-200 Y180",hal:"KIDDIE 1211",pbe:"DRAGER",pob:"SCOTT (2 OL)",elt:"Rescue406 SE",slide:"Escape",f:"DME",lv:"1 Ch.",ilv:"1 Ch. w/whistle",card:"Oval (White) Rev.02"}
+};
+const BOEING = {type:"Boeing",hal:"2BTP, H2O",pbe:"SCOTT",pob:"1 outlet, knob on side",elt:"TechTest H-series",slide:"",f:"AirLite",lv:"1 Ch. no whistle",ilv:"",card:"Ribbon (White) Rev.02"};
+const EQ = ["hal","pbe","pob","elt","slide","f","lv","ilv","card"];
+function lookup(ac){
+  const a=(ac||"").toUpperCase().replace(/\s/g,"");
+  if(a.startsWith("VZ")) return {key:"VZ",d:BOEING};
+  const m=a.match(/^(?:HS-?)?VK-?([A-Z])$/) || a.match(/^([A-Z])$/);
+  if(m && FLEET[m[1]]) return {key:m[1],d:FLEET[m[1]]};
+  return null;
+}
+// migrate older saved forms
+S.legs.forEach(l=>{ if(l.dep===undefined){ l.dep=l.std||""; l.arr=l.time||""; delete l.time; } });
+if(S.card===undefined){ S.card=""; const r=lookup(S.ac); if(r) EQ.forEach(k=>{ if(!S[k]) S[k]=r.d[k]; }); }
+
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+
+/* ---------- build dynamic inputs ---------- */
+const legsEl = document.getElementById("legs");
+for(let i=0;i<LEGS;i++){
+  legsEl.insertAdjacentHTML("beforeend",`
+   <div class="leg">
+    <div class="leg-t">Sector ${i+1}</div>
+    <div class="grid g2">
+      <div><label>Flight</label><div class="fno"><span>VZ</span><input data-l="${i}" data-f="no" inputmode="numeric" placeholder="340"></div></div>
+      <div><label>Des.</label><input data-l="${i}" data-f="des" placeholder="BKK-KBV" autocapitalize="characters"></div>
+    </div>
+    <div class="grid g3">
+      <div><label>STD</label><input data-l="${i}" data-f="std" class="tm" inputmode="numeric" placeholder="07:00"></div>
+      <div><label>Depart</label><input data-l="${i}" data-f="dep" class="tm" inputmode="numeric" placeholder="07:00"></div>
+      <div><label>Arrive</label><input data-l="${i}" data-f="arr" class="tm" inputmode="numeric" placeholder="08:30"></div>
+    </div>
+    <div class="grid g3">
+      <div><label>PAX</label><input data-l="${i}" data-f="pax" inputmode="numeric"></div>
+    </div>
+   </div>`);
+}
+const crewEl = document.getElementById("crew");
+for(let i=0;i<CREW;i++){
+  crewEl.insertAdjacentHTML("beforeend",`
+   <div class="crew">
+     <input data-c="${i}" data-f="pos" placeholder="${i===0?'PUR.':'CA'}" autocapitalize="characters">
+     <input data-c="${i}" data-f="name" autocapitalize="characters" placeholder="ชื่อ-สกุล">
+     <input data-c="${i}" data-f="id" autocapitalize="characters" placeholder="TVJ0000">
+   </div>`);
+}
+
+/* ---------- aircraft picker ---------- */
+const chipsEl=document.getElementById("chips");
+Object.keys(FLEET).forEach(k=>chipsEl.insertAdjacentHTML("beforeend",`<button class="chip" data-ac="${k}">${k}</button>`));
+chipsEl.insertAdjacentHTML("beforeend",`<button class="chip vz" data-ac="VZ">VZ- Boeing</button>`);
+function showInfo(){
+  const r=lookup(S.ac), box=document.getElementById("acinfo");
+  document.querySelectorAll(".chip").forEach(c=>c.classList.toggle("on", !!r && c.dataset.ac===r.key));
+  if(!r){ box.classList.remove("on"); return; }
+  box.innerHTML=`<b>${esc(r.key==="VZ"?"VZ- ":"HS-VK"+r.key)}</b> · ${esc(r.d.type)}<br>Safety card: <b>${esc(r.d.card)}</b>${r.d.rmk?"<br>"+esc(r.d.rmk):""}`;
+  box.classList.add("on");
+}
+function applyAC(){
+  const r=lookup(S.ac); if(!r) { showInfo(); return; }
+  EQ.forEach(k=>S[k]=r.d[k]||"");
+  save(); fill(); showInfo(); toast("ใส่อุปกรณ์ "+(r.key==="VZ"?"Boeing":"HS-VK"+r.key)+" แล้ว");
+}
+chipsEl.addEventListener("click",e=>{
+  const b=e.target.closest(".chip"); if(!b) return;
+  const k=b.dataset.ac;
+  S.ac = k==="VZ" ? (S.ac.toUpperCase().startsWith("VZ")? S.ac : "VZ-") : "HS-VK"+k;
+  applyAC();
+  if(k==="VZ"){ const i=document.getElementById("acIn"); i.focus(); i.setSelectionRange(i.value.length,i.value.length); }
+});
+document.getElementById("acIn").addEventListener("change",e=>{ S.ac=e.target.value.toUpperCase(); e.target.value=S.ac; save(); const r=lookup(S.ac); if(r && r.key!=="VZ") applyAC(); else if(r && !S.hal) applyAC(); else showInfo(); });
+
+/* ---------- auto-fill from screenshots ---------- */
+let sampleFn=null, maxImgs=5, imgs=[];
+const imgIn=document.getElementById("imgIn"), thumbs=document.getElementById("thumbs"),
+      bRead=document.getElementById("bRead"), readMsg=document.getElementById("readMsg");
+function msg(t,err){ readMsg.textContent=t; readMsg.classList.toggle("err",!!err); }
+function drawThumbs(){
+  thumbs.innerHTML="";
+  imgs.forEach((f,i)=>{
+    const d=document.createElement("div"); d.className="th";
+    const im=document.createElement("img"); im.src=URL.createObjectURL(f); d.appendChild(im);
+    const x=document.createElement("button"); x.textContent="✕"; x.onclick=()=>{ imgs.splice(i,1); drawThumbs(); };
+    d.appendChild(x); thumbs.appendChild(d);
+  });
+  bRead.disabled = !imgs.length || !sampleFn;
+}
+imgIn.addEventListener("change",()=>{
+  for(const f of imgIn.files){ if(imgs.length<maxImgs) imgs.push(f); }
+  if(imgIn.files.length && imgs.length>=maxImgs) msg(`เลือกได้สูงสุด ${maxImgs} รูปต่อครั้ง`);
+  imgIn.value=""; drawThumbs();
+});
+msg("กำลังเชื่อมต่อ…");
+(async()=>{
+  try{
+    if(window.claude && claude.use){
+      const sm = await claude.use("sample");
+      if(sm){
+        const lim = await sm.limits().catch(()=>null);
+        if(lim && lim.images){ sampleFn=sm; maxImgs=Math.max(1,lim.images.maxCount||5); msg(""); drawThumbs(); return; }
+      }
+    }
+  }catch(e){}
+  msg("ฟีเจอร์อ่านรูปใช้ได้เมื่อเปิดหน้านี้ในแอปหรือเว็บ Claude", true);
+})();
+
+const PROMPT = `You are reading screenshots from a Thai VietJet (VZ) cabin crew rostering app, to fill a Flight Information Form.
+Screens may include "Duty Detail" (Date, On = report time, sectors list like "340 (BKK-KBV) / HS-VKS" with Depart/Arrive times) and "Flight Detail" (STD/STA/ETD/ATD times and a Flight Crew List of names with "ID - POSITION").
+Some text may be covered by hand-drawn red marks; if a value is unreadable, use null rather than guessing.
+
+Reply with only this JSON:
+{"date":"DD/MM/YYYY"|null,"report":"HH:MM"|null,"ac":"HS-VKS"|null,"capt":string|null,"fo":string|null,
+ "sectors":[{"no":"340","des":"BKK-KBV","std":"HH:MM"|null,"dep":"HH:MM"|null,"arr":"HH:MM"|null}],
+ "crew":[{"pos":"PUR.","name":"FULL NAME","id":"TVJ0000"}]}
+
+Rules:
+- date: the duty Date, converted from YYYY-MM-DD to DD/MM/YYYY. report: the "On" time of the duty.
+- ac: the aircraft registration shown after "/" in the sectors (e.g. HS-VKS, or VZ-xxx for Boeing).
+- sectors: in the order listed, at most 4. "no" is the flight number digits only (no "VZ"). dep/arr: the Depart/Arrive times (time only, HH:MM, local).
+  std: the scheduled departure (STD) from a Flight Detail screen for that flight; if a Flight Detail screen does not show which flight it is, treat it as the first sector. Otherwise null.
+- capt: the crew member with position CPT (or CAPT). fo: position FO. Names uppercase as shown.
+- crew: every other crew member (cabin crew), in listed order. pos: "PUR." for PUR, otherwise the code as shown (e.g. "CA"). id as shown (e.g. TVJ2274).
+- Use [] for sectors or crew not visible in any image.`;
+
+const val = x => (typeof x==="string" && x.trim() && x.trim().toLowerCase()!=="null") ? x.trim() : "";
+bRead.onclick = async ()=>{
+  if(!sampleFn || !imgs.length) return;
+  bRead.disabled=true; msg("กำลังอ่านรูป… (อาจใช้เวลา 10–40 วินาที)");
+  try{
+    const r = await sampleFn.json(PROMPT, {images:imgs, modelTier:"default"});
+    if(!r || typeof r!=="object") throw {code:"invalid_json"};
+    const got=[];
+    ["date","report","capt","fo"].forEach(k=>{ const v=val(r[k]); if(v){ S[k]=k==="report"?fmtTime(v):v; got.push(k); } });
+    const secs = Array.isArray(r.sectors)? r.sectors.slice(0,LEGS) : [];
+    if(secs.length){
+      S.legs = Array.from({length:LEGS},(_,i)=>{
+        const o=secs[i]||{}, old=S.legs[i]||{};
+        const leg={no:val(o.no).replace(/^VZ\s*/i,""),des:val(o.des).toUpperCase(),std:fmtTime(val(o.std)),dep:fmtTime(val(o.dep)),arr:fmtTime(val(o.arr)),pax:secs[i]?(old.pax||""):""};
+        if(!leg.std && leg.dep) leg.std=leg.dep;
+        return leg;
+      });
+      got.push(secs.length+" sectors");
+    }
+    const crew = Array.isArray(r.crew)? r.crew.filter(c=>c&&val(c.name)).slice(0,CREW) : [];
+    if(crew.length){
+      S.crew = Array.from({length:CREW},(_,i)=>{
+        const c=crew[i]; if(!c) return {pos:"",name:"",id:""};
+        let pos=val(c.pos).toUpperCase(); if(pos==="PUR") pos="PUR.";
+        return {pos, name:val(c.name).toUpperCase(), id:val(c.id).toUpperCase()};
+      });
+      got.push(crew.length+" crew");
+    }
+    const ac=val(r.ac).toUpperCase();
+    save(); fill();
+    if(ac){ S.ac=ac; applyAC(); got.push(ac); } else showInfo();
+    render();
+    if(got.length){ msg("✓ กรอกแล้ว: "+got.join(", ")+"\nตรวจทานข้อมูลอีกครั้งก่อนใช้งาน"); toast("กรอกข้อมูลจากรูปแล้ว"); }
+    else msg("อ่านข้อมูลจากรูปไม่ได้ ลองใช้ภาพหน้าจอที่ชัดขึ้น", true);
+  }catch(e){
+    const c=e&&e.code;
+    if(c==="not_granted"||c==="sampling_disabled"){ msg("ไม่ได้รับอนุญาตให้ใช้ Claude อ่านรูป",true); sampleFn=null; }
+    else if(c==="rate_limited") msg("ใช้งานถี่เกินไป ลองใหม่อีกสักครู่",true);
+    else if(c==="image_rejected") msg("รูปนี้ใช้ไม่ได้ ลองไฟล์ JPG/PNG อื่น",true);
+    else if(c==="cancelled") msg("");
+    else msg("อ่านรูปไม่สำเร็จ ลองอีกครั้ง",true);
+  }finally{ drawThumbs(); }
+};
+
+/* ---------- binding ---------- */
+function fill(){
+  document.querySelectorAll("[data-k]").forEach(el=> el.value = S[el.dataset.k]||"");
+  document.querySelectorAll("[data-l]").forEach(el=> el.value = S.legs[el.dataset.l][el.dataset.f]||"");
+  document.querySelectorAll("[data-c]").forEach(el=> el.value = S.crew[el.dataset.c][el.dataset.f]||"");
+}
+function fmtTime(v){
+  const d = v.replace(/\D/g,"");
+  if(/^\d{3,4}$/.test(d)){ const p=d.padStart(4,"0"); return p.slice(0,2)+":"+p.slice(2); }
+  return v;
+}
+document.addEventListener("input", e=>{
+  const el = e.target;
+  if(el.dataset.k!==undefined) S[el.dataset.k]=el.value;
+  else if(el.dataset.l!==undefined) S.legs[el.dataset.l][el.dataset.f]=el.value;
+  else if(el.dataset.c!==undefined) S.crew[el.dataset.c][el.dataset.f]=el.value;
+  else return;
+  save();
+});
+document.addEventListener("change", e=>{
+  const el = e.target;
+  if(el.classList.contains("tm")){ el.value = fmtTime(el.value); el.dispatchEvent(new Event("input",{bubbles:true})); }
+});
+
+/* ---------- paper render ---------- */
+const esc = s => String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const v = s => `<span class="v">${esc(s)}</span>`;
+function render(){
+  const L = S.legs, C = S.crew;
+  let h = `<table>
+  <colgroup><col style="width:15%"><col style="width:10%"><col style="width:21%"><col style="width:20%"><col style="width:16%"><col style="width:18%"></colgroup>
+  <tr><td colspan="6" class="t">Flight Information Form</td></tr>
+  <tr><td colspan="3">Date : ${v(S.date)}</td><td colspan="3">Report Time : ${v(S.report)}</td></tr>
+  <tr><td colspan="2">Flight :</td><td>Des. :</td><td>STD :</td><td>PAX :</td><td>Time :</td></tr>`;
+  for(let i=0;i<LEGS;i++){
+    h += `<tr><td colspan="2">VZ ${v(L[i].no)}</td><td>${v(L[i].des)}</td><td>${v(L[i].std)}</td><td>${v(L[i].pax)}</td><td>${v((L[i].dep||L[i].arr)?(L[i].dep||'')+'-'+(L[i].arr||''):'')}</td></tr>`;
+  }
+  h += `<tr><td colspan="3">A/C : ${v(S.ac)}</td><td>Gate : ${v(S.gate)}</td><td colspan="2">Money : ${v(S.money)}</td></tr>
+  <tr><td colspan="3">CAPT : ${v(S.capt)}</td><td colspan="3">FO : ${v(S.fo)}</td></tr>
+  <tr><td colspan="3" class="c">Crew/Position</td><td class="c">ID</td><td colspan="2" class="c">Special</td></tr>`;
+  for(let i=0;i<CREW;i++){
+    h += `<tr><td>${i===0 && !C[i].pos ? "PUR." : v(C[i].pos)}</td><td colspan="2">${v(C[i].name)}</td><td>${v(C[i].id)}</td>`;
+    if(i===0) h += `<td colspan="2" rowspan="${CREW}" class="sp">${S.card?"Safety card:\n"+v(S.card)+"\n\n":""}${v(S.special)}</td>`;
+    h += `</tr>`;
+  }
+  h += `<tr><td colspan="2">HAL : ${v(S.hal)}</td><td>PBE : ${v(S.pbe)}</td><td>POB : ${v(S.pob)}</td><td>ELT : ${v(S.elt)}</td><td>F : ${v(S.f)}</td></tr>
+  <tr><td colspan="2">Slide : ${v(S.slide)}</td><td>LV : ${v(S.lv)}</td><td colspan="3">ILV : ${v(S.ilv)}</td></tr>
+  <tr><td colspan="3" class="tall">SEC1 :\n${v(S.sec1)}</td><td colspan="3" class="tall">SEC2 :\n${v(S.sec2)}</td></tr>
+  <tr><td colspan="3" class="tall">SEC3 :\n${v(S.sec3)}</td><td colspan="3" class="tall">SEC4 :\n${v(S.sec4)}</td></tr>
+  </table>`;
+  const paper=document.getElementById("paper");
+  paper.innerHTML = h;
+  // shrink any text that doesn't fit its cell
+  const sc=document.getElementById("scaler"); sc.style.transform="none";
+  const rg=document.createRange();
+  const over=td=>{ rg.selectNodeContents(td); return rg.getBoundingClientRect().width > td.clientWidth-10; };
+  paper.querySelectorAll("td").forEach(td=>{
+    if(td.classList.contains("tall")||td.classList.contains("sp")) return;
+    let fs=12.5; td.style.fontSize="";
+    while(over(td) && fs>7.5){ fs-=0.5; td.style.fontSize=fs+"px"; }
+  });
+  fit();
+}
+function fit(){
+  const pw=document.getElementById("pw"), sc=document.getElementById("scaler"), paper=document.getElementById("paper");
+  if(!pw.offsetWidth) return;
+  const avail=pw.clientWidth-20, k=Math.min(1,avail/paper.offsetWidth);
+  sc.style.transform=`scale(${k})`; sc.style.transformOrigin="top left";
+  sc.style.width=paper.offsetWidth+"px"; sc.style.height=(paper.offsetHeight*k)+"px";
+  sc.style.marginLeft=Math.max(0,(avail-paper.offsetWidth*k)/2)+"px";
+}
+window.addEventListener("resize",fit);
+
+/* ---------- tabs ---------- */
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x===t));
+  document.querySelectorAll(".view").forEach(x=>x.classList.toggle("on",x.id===t.dataset.v));
+  if(t.dataset.v==="preview") render();
+  window.scrollTo(0,0);
+});
+
+/* ---------- toast / dialog ---------- */
+function toast(m){ const t=document.getElementById("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("on"),2200); }
+const dlg = document.getElementById("dlg");
+document.getElementById("bNew").onclick=()=>dlg.classList.add("on");
+document.getElementById("dNo").onclick=()=>dlg.classList.remove("on");
+document.getElementById("dYes").onclick=()=>{ S=blank(); save(); fill(); showInfo(); render(); dlg.classList.remove("on"); toast("เริ่มฟอร์มใหม่แล้ว"); };
+
+/* ---------- export ---------- */
+let downloads = null;
+(async()=>{ try{ if(window.claude && claude.use) downloads = await claude.use("downloads"); }catch(e){} })();
+
+function fname(ext){
+  const f = (S.legs[0].no||"form").replace(/\W/g,"");
+  const d = (S.date||"").replace(/\//g,"-");
+  return `VZ${f}${d?"_"+d:""}.${ext}`;
+}
+async function snap(){
+  render();
+  const p = document.getElementById("paper"), sc=document.getElementById("scaler");
+  const prev=sc.style.transform; sc.style.transform="none";
+  try{ return await html2canvas(p,{scale:3,backgroundColor:"#ffffff"}); }
+  finally{ sc.style.transform=prev; }
+}
+async function deliver(name, blob){
+  if(downloads){
+    try{ await downloads.save({filename:name,data:blob}); toast("บันทึกแล้ว"); return; }
+    catch(e){ if(e && e.code==="declined") return; }
+  }
+  // fallback: open blob in page
+  try{
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; a.click();
+  }catch(e){ toast("อุปกรณ์นี้บันทึกไฟล์ไม่ได้"); }
+}
+document.getElementById("bPng").onclick=async()=>{
+  toast("กำลังสร้างรูป…");
+  try{
+    const c = await snap();
+    c.toBlob(b=>deliver(fname("png"),b),"image/png");
+  }catch(e){ toast("สร้างรูปไม่สำเร็จ"); }
+};
+document.getElementById("bPdf").onclick=async()=>{
+  toast("กำลังสร้าง PDF…");
+  try{
+    const c = await snap();
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({unit:"mm",format:"a4",orientation:"portrait"});
+    const W=190, H = W * c.height / c.width;
+    pdf.addImage(c.toDataURL("image/png"),"PNG",10,10,W,Math.min(H,277));
+    deliver(fname("pdf"), pdf.output("blob"));
+  }catch(e){ toast("สร้าง PDF ไม่สำเร็จ"); }
+};
+
+fill(); showInfo(); render();
+</script>
+</body>
+</html>
