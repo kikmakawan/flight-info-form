@@ -4,13 +4,21 @@ Mobile web app for filling in the cabin crew Flight Information Form.
 
 ## Features
 
-- **Sectors**: flight no., destination, STD, Depart–Arrive, PAX
+- **Sectors**: flight no., destination, STD (shown as Depart–Arrive), PAX, Time (left blank to fill in)
 - **Aircraft picker**: tap HS-VKA … HS-VKT or VZ- (Boeing) and the safety equipment (HAL, PBE, POB, ELT, F, Slide, LV, ILV, safety card) fills in automatically
 - **Cockpit & crew** list with positions and IDs
 - **Paper-style preview** matching the printed form
 - **Save as PNG or PDF**
 - **Auto-fill from screenshots** of the roster app (Duty Detail / Flight Detail). Reads the text on the phone with Tesseract.js OCR (the first run downloads about 10 MB). When opened as a Claude artifact, Claude reads the images instead. Use clean screenshots with no drawing on them.
 - Form is saved in the browser (localStorage)
+
+## Install on your phone
+
+Open https://kikmakawan.github.io/flight-info-form/ then:
+- **Android (Chrome / Samsung Internet)**: tap **⬇ ติดตั้งแอป** at the top, or menu ⋮ → *Install app* / *Add to Home screen*
+- **iPhone (Safari)**: Share → *Add to Home Screen*
+
+After the first load the form also works offline.
 
 ## Use
 

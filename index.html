@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Flight Information Form</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#e3262b">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Flight Form">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -18,6 +25,9 @@
     font-family:"IBM Plex Sans Thai",system-ui,-apple-system,sans-serif;-webkit-text-size-adjust:100%}
   header{position:sticky;top:0;z-index:5;background:var(--red);color:#fff;
     padding:12px 16px 0;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+  #bInstall{position:absolute;right:10px;top:10px;display:none;border:0;border-radius:16px;background:#fff;color:var(--red);
+    font:inherit;font-size:13px;font-weight:600;padding:5px 11px;cursor:pointer}
+  #iosTip{display:none;background:#fff3cd;color:#6b4e00;font-size:13px;padding:9px 14px;text-align:center}
   header h1{margin:0 0 10px;font-size:18px;font-weight:600;text-align:center;letter-spacing:.2px}
   .tabs{display:flex;gap:4px}
   .tab{flex:1;border:0;background:transparent;color:rgba(255,255,255,.75);font:inherit;font-size:15px;
@@ -105,11 +115,13 @@
 <body>
 <header>
   <h1>✈︎ Flight Information Form</h1>
+  <button id="bInstall">⬇ ติดตั้งแอป</button>
   <div class="tabs">
     <button class="tab on" data-v="edit">กรอกข้อมูล</button>
     <button class="tab" data-v="preview">ดูฟอร์ม</button>
   </div>
 </header>
+<div id="iosTip">ติดตั้งเป็นแอป: กดปุ่มแชร์ <b>⎋</b> ด้านล่าง แล้วเลือก <b>"เพิ่มไปยังหน้าจอโฮม"</b> <span id="iosX" style="margin-left:6px;cursor:pointer">✕</span></div>
 
 <main>
   <!-- ================= EDIT ================= -->
@@ -201,7 +213,7 @@ const LEGS = 4, CREW = 7;
 
 function blank(){
   return {date:"",report:"",ac:"",gate:"",money:"",capt:"",fo:"",
-    legs:Array.from({length:LEGS},()=>({no:"",des:"",std:"",dep:"",arr:"",pax:""})),
+    legs:Array.from({length:LEGS},()=>({no:"",des:"",dep:"",arr:"",pax:"",time:""})),
     crew:Array.from({length:CREW},(_,i)=>({pos:i===0?"PUR.":"",name:"",id:""})),
     special:"",card:"",hal:"",pbe:"",pob:"",elt:"",f:"",slide:"",lv:"",ilv:"",sec1:"",sec2:"",sec3:"",sec4:""};
 }
@@ -242,7 +254,7 @@ function lookup(ac){
   return null;
 }
 // migrate older saved forms
-S.legs.forEach(l=>{ if(l.dep===undefined){ l.dep=l.std||""; l.arr=l.time||""; delete l.time; } });
+S.legs.forEach(l=>{ if(l.dep===undefined){ l.dep=l.std||""; l.arr=l.time||""; l.time=""; } if(l.time===undefined) l.time=""; delete l.std; });
 if(S.card===undefined){ S.card=""; const r=lookup(S.ac); if(r) EQ.forEach(k=>{ if(!S[k]) S[k]=r.d[k]; }); }
 
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
@@ -258,12 +270,12 @@ for(let i=0;i<LEGS;i++){
       <div><label>Des.</label><input data-l="${i}" data-f="des" placeholder="BKK-KBV" autocapitalize="characters"></div>
     </div>
     <div class="grid g3">
-      <div><label>STD</label><input data-l="${i}" data-f="std" class="tm" inputmode="numeric" placeholder="07:00"></div>
       <div><label>Depart</label><input data-l="${i}" data-f="dep" class="tm" inputmode="numeric" placeholder="07:00"></div>
       <div><label>Arrive</label><input data-l="${i}" data-f="arr" class="tm" inputmode="numeric" placeholder="08:30"></div>
     </div>
     <div class="grid g3">
       <div><label>PAX</label><input data-l="${i}" data-f="pax" inputmode="numeric"></div>
+      <div><label>Time</label><input data-l="${i}" data-f="time"></div>
     </div>
    </div>`);
 }
@@ -341,18 +353,18 @@ Some text may be covered by hand-drawn red marks; if a value is unreadable, use 
 
 Reply with only this JSON:
 {"date":"DD/MM/YYYY"|null,"report":"HH:MM"|null,"ac":"HS-VKS"|null,"capt":string|null,"fo":string|null,
- "sectors":[{"no":"340","des":"BKK-KBV","std":"HH:MM"|null,"dep":"HH:MM"|null,"arr":"HH:MM"|null}],
+ "sectors":[{"no":"340","des":"BKK-KBV","dep":"HH:MM"|null,"arr":"HH:MM"|null}],
  "crew":[{"pos":"PUR.","name":"FULL NAME","id":"TVJ0000"}]}
 
 Rules:
 - date: the duty Date, converted from YYYY-MM-DD to DD/MM/YYYY. report: the "On" time of the duty.
-- ac: the aircraft registration shown after "/" in the sectors (e.g. HS-VKS, or VZ-xxx for Boeing).
+- ac: the aircraft registration shown after "/" in the sectors, or under Equipment on Flight Detail (e.g. HS-VKS, or VZ-xxx for Boeing).
 - sectors: in the order listed, at most 4. "no" is the flight number digits only (no "VZ"). dep/arr: the Depart/Arrive times (time only, HH:MM, local).
-  std: the scheduled departure (STD) from a Flight Detail screen for that flight; if a Flight Detail screen does not show which flight it is, treat it as the first sector. Otherwise null.
 - capt: the crew member with position CPT (or CAPT). fo: position FO. Names uppercase as shown.
 - crew: every other crew member (cabin crew), in listed order. pos: "PUR." for PUR, otherwise the code as shown (e.g. "CA"). id as shown (e.g. TVJ2274).
 - Use [] for sectors or crew not visible in any image.`;
 
+function vkL(c){ return ({"0":"O","5":"S","7":"J","]":"J","1":"J","8":"B","2":"Z","6":"G"})[c] || c; }
 function parseOCR(text){
   const fixD = s => s.replace(/[Oo]/g,"0").replace(/[Il|\]]/g,"1").replace(/[Ss]/g,"5").replace(/B/g,"8");
   const T = t => { const m=fixD(t).match(/(\d{1,2})\s*[:.]\s*(\d{2})/); return m? m[1].padStart(2,"0")+":"+m[2] : ""; };
@@ -370,28 +382,31 @@ function parseOCR(text){
       if(t){ r.report=t; break; }
     }
   }
-  const STD = all.match(/\bSTD\s*([0-9OoIl]{1,2}\s*[:.]\s*[0-9OoIl]{2})/);
   // sectors & times
   let cur=null;
   for(const l of lines){
-    const s = l.match(/(\d{3,4})\s*[\(\[{]\s*([A-Za-z0-9]{3})\s*[-–~]\s*([A-Za-z0-9]{3})\s*[\)\]}]?\s*(?:[\/|lI]\s*([A-Za-z0-9]{2,3}\s*-?\s*[A-Za-z0-9]{3}))?/);
+    const s = l.match(/(\d{3,4})\s*[\(\[{]\s*([A-Za-z0-9]{3})\s*[-–~]\s*([A-Za-z0-9]{3})\s*[\)\]}]?\s*(?:[\/|lI]\s*([A-Za-z0-9]{2,3}\s*-?\s*[A-Za-z0-9]{2}[A-Za-z0-9\]]))?/);
     if(s){
-      cur={no:s[1],des:(s[2]+"-"+s[3]).toUpperCase().replace(/0/g,"O"),std:"",dep:"",arr:""};
+      cur={no:s[1],des:(s[2]+"-"+s[3]).toUpperCase().replace(/0/g,"O"),dep:"",arr:""};
       r.sectors.push(cur);
       if(s[4] && !r.ac){
         let reg=s[4].replace(/\s/g,"").toUpperCase();
-        const h=reg.match(/^H[S5]{1,2}-?VK([A-Z0-9])$/); if(h) reg="HS-VK"+h[1].replace("0","O").replace("5","S");
+        const h=reg.match(/^H[S5]{1,2}-?VK([A-Z0-9\]])$/); if(h) reg="HS-VK"+vkL(h[1]);
         const v=reg.match(/^V[Z2]-?([A-Z0-9]{3})$/); if(v) reg="VZ-"+v[1];
         r.ac=reg;
       }
       continue;
     }
-    if(/^Dep/i.test(l) && (!cur || cur.dep)){ cur={no:"",des:"",std:"",dep:"",arr:""}; r.sectors.push(cur); }
-    if(cur && /^Dep/i.test(l)){ const t=T(l.replace(/20\d{2}\s*-\s*\d{1,2}\s*-\s*\d{1,2}/,"")); if(t) cur.dep=t; }
-    if(cur && /^Arr/i.test(l)){ const t=T(l.replace(/20\d{2}\s*-\s*\d{1,2}\s*-\s*\d{1,2}/,"")); if(t) cur.arr=t; }
+    const isDep = /^Depart/i.test(l) && /20\d{2}/.test(l), isArr = /^Arriv/i.test(l) && /20\d{2}/.test(l);
+    if(isDep && cur && cur.dep && cur.no){ cur={no:"",des:"",dep:"",arr:""}; r.sectors.push(cur); }
+    if(cur && isDep){ const t=T(l.replace(/20\d{2}\s*-\s*\d{1,2}\s*-\s*\d{1,2}/,"")); if(t) cur.dep=t; }
+    if(cur && isArr){ const t=T(l.replace(/20\d{2}\s*-\s*\d{1,2}\s*-\s*\d{1,2}/,"")); if(t) cur.arr=t; }
   }
-  if(STD && r.sectors[0]) r.sectors[0].std = T(STD[1]);
-  if(STD && !r.sectors.length) r.std1 = T(STD[1]);
+  r.sectors = r.sectors.filter(x=>x.no || x.dep);
+  if(!r.ac){
+    const g = all.match(/\bH\s*[S5]{1,2}\s*-\s*V\s*K\s*([A-Z0-9\]])/) || all.match(/\bV\s*[Z2]\s*-\s*([A-Z0-9]{3})\b/);
+    if(g) r.ac = g[0].startsWith("V") ? "VZ-"+g[1] : "HS-VK"+vkL(g[1]);
+  }
   // crew: "TVJ0711 - CPT" with name on previous line
   for(let i=0;i<lines.length;i++){
     const c = lines[i].match(/[T1I]\s*V\s*[J\]I1l|]\s*([0-9OoIlSB]{3,5})\s*[-–—~]+\s*([A-Z]{2,4})/);
@@ -420,13 +435,11 @@ function applyResult(r){
   if(secs.length){
     S.legs = Array.from({length:LEGS},(_,i)=>{
       const o=secs[i]||{}, old=S.legs[i]||{};
-      const leg={no:val(o.no).replace(/^VZ\s*/i,""),des:val(o.des).toUpperCase(),std:fmtTime(val(o.std)),dep:fmtTime(val(o.dep)),arr:fmtTime(val(o.arr)),pax:secs[i]?(old.pax||""):""};
-      if(!leg.std && leg.dep) leg.std=leg.dep;
-      return leg;
+      const no=val(o.no).replace(/^VZ\s*/i,""), same = no && no===old.no;
+      return {no,des:val(o.des).toUpperCase(),dep:fmtTime(val(o.dep)),arr:fmtTime(val(o.arr)),pax:same?(old.pax||""):"",time:same?(old.time||""):""};
     });
     got.push(secs.length+" sectors");
   }
-  if(val(r.std1) && !secs.length && S.legs[0]){ S.legs[0].std=val(r.std1); }
   const crew = Array.isArray(r.crew)? r.crew.filter(c=>c&&val(c.name)).slice(0,CREW) : [];
   if(crew.length){
     S.crew = Array.from({length:CREW},(_,i)=>{
@@ -460,16 +473,15 @@ async function ocrRead(){
     ocrWorker = await Tesseract.createWorker("eng",1,{logger:m=>{ if(m.status==="loading language traineddata") msg("กำลังโหลดภาษา… "+Math.round((m.progress||0)*100)+"%"); }});
     await ocrWorker.setParameters({tessedit_pageseg_mode:"4"});
   }
-  const merged={date:"",report:"",ac:"",capt:"",fo:"",sectors:[],crew:[],std1:""};
+  const merged={date:"",report:"",ac:"",capt:"",fo:"",sectors:[],crew:[]};
   for(let i=0;i<imgs.length;i++){
     msg(`กำลังอ่านรูป ${i+1}/${imgs.length}…`);
     const {data} = await ocrWorker.recognize(await prep(imgs[i]));
     const r = parseOCR(data.text||"");
-    ["date","report","ac","capt","fo","std1"].forEach(k=>{ if(!merged[k] && r[k]) merged[k]=r[k]; });
+    ["date","report","ac","capt","fo"].forEach(k=>{ if(!merged[k] && r[k]) merged[k]=r[k]; });
     r.sectors.forEach(sc=>{ if(!sc.no || !merged.sectors.some(x=>x.no===sc.no)) merged.sectors.push(sc); });
     r.crew.forEach(c=>{ if(!merged.crew.some(x=>x.id===c.id)) merged.crew.push(c); });
   }
-  if(merged.std1 && merged.sectors[0] && !merged.sectors[0].std) merged.sectors[0].std=merged.std1;
   return merged;
 }
 
@@ -534,7 +546,7 @@ function render(){
   <tr><td colspan="3">Date : ${v(S.date)}</td><td colspan="3">Report Time : ${v(S.report)}</td></tr>
   <tr><td colspan="2">Flight :</td><td>Des. :</td><td>STD :</td><td>PAX :</td><td>Time :</td></tr>`;
   for(let i=0;i<LEGS;i++){
-    h += `<tr><td colspan="2">VZ ${v(L[i].no)}</td><td>${v(L[i].des)}</td><td>${v(L[i].std)}</td><td>${v(L[i].pax)}</td><td>${v((L[i].dep||L[i].arr)?(L[i].dep||'')+'-'+(L[i].arr||''):'')}</td></tr>`;
+    h += `<tr><td colspan="2">VZ ${v(L[i].no)}</td><td>${v(L[i].des)}</td><td>${v((L[i].dep||L[i].arr)?(L[i].dep||'')+'-'+(L[i].arr||''):'')}</td><td>${v(L[i].pax)}</td><td>${v(L[i].time)}</td></tr>`;
   }
   h += `<tr><td colspan="3">A/C : ${v(S.ac)}</td><td>Gate : ${v(S.gate)}</td><td colspan="2">Money : ${v(S.money)}</td></tr>
   <tr><td colspan="3">CAPT : ${v(S.capt)}</td><td colspan="3">FO : ${v(S.fo)}</td></tr>
@@ -633,6 +645,19 @@ document.getElementById("bPdf").onclick=async()=>{
 };
 
 fill(); showInfo(); render();
+
+/* ---------- install as app (PWA) ---------- */
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+let deferredPrompt=null;
+const bInstall=document.getElementById("bInstall");
+window.addEventListener("beforeinstallprompt",e=>{ e.preventDefault(); deferredPrompt=e; bInstall.style.display="block"; });
+bInstall.onclick=async()=>{ if(!deferredPrompt) return; deferredPrompt.prompt(); await deferredPrompt.userChoice.catch(()=>{}); deferredPrompt=null; bInstall.style.display="none"; };
+window.addEventListener("appinstalled",()=>{ bInstall.style.display="none"; toast("ติดตั้งแอปแล้ว"); });
+const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+let tipOff=false; try{ tipOff=localStorage.getItem("iosTipOff")==="1"; }catch(e){}
+if(isIOS && !standalone && !tipOff) document.getElementById("iosTip").style.display="block";
+document.getElementById("iosX").onclick=()=>{ document.getElementById("iosTip").style.display="none"; try{localStorage.setItem("iosTipOff","1");}catch(e){} };
 </script>
 </body>
 </html>
