@@ -86,6 +86,15 @@
   .btn.p{background:var(--red);color:#fff}
   .btn.s{background:#f0f0f3;color:var(--ink)}
   .btn:active{transform:scale(.98)}
+  #printArea{display:none}
+  @media print{
+    @page{size:A4 portrait;margin:0}
+    html,body{background:#fff!important;margin:0!important;padding:0!important}
+    body>*:not(#printArea){display:none!important}
+    #printArea{display:block!important;position:absolute;left:0;top:0;width:105mm;height:148.5mm;
+      box-sizing:border-box;padding:3mm;overflow:hidden;border-right:0.3mm dashed #999;border-bottom:0.3mm dashed #999}
+    #printArea .pp{transform-origin:top left;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
   .toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:#222;color:#fff;
     padding:9px 16px;border-radius:20px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:9}
   .toast.on{opacity:.95}
@@ -197,11 +206,13 @@
 </main>
 
 <div class="bar">
-  <button class="btn s" id="bNew">ฟอร์มใหม่</button>
-  <button class="btn p" id="bPng">บันทึกรูป</button>
-  <button class="btn p" id="bPdf">บันทึก PDF</button>
+  <button class="btn s" id="bNew">ใหม่</button>
+  <button class="btn p" id="bPng">รูป</button>
+  <button class="btn p" id="bPdf">PDF</button>
+  <button class="btn p" id="bPrint">🖨 ปริ้น</button>
 </div>
 <div class="toast" id="toast"></div>
+<div id="printArea"></div>
 <div class="dlg" id="dlg"><div class="dlg-c">
   <p>ล้างข้อมูลทั้งหมดเพื่อเริ่มฟอร์มใหม่?</p>
   <div class="row"><button class="btn s" id="dNo">ยกเลิก</button><button class="btn p" id="dYes">ล้างข้อมูล</button></div>
@@ -608,23 +619,73 @@ function fname(ext){
   const d = (S.date||"").replace(/\//g,"-");
   return `VZ${f}${d?"_"+d:""}.${ext}`;
 }
-async function snap(){
+// lay the paper out even when the preview tab is hidden
+function withPaper(fn){
+  const pv=document.getElementById("preview"), hidden=!pv.classList.contains("on");
+  if(hidden) pv.style.cssText="display:block;position:absolute;left:-10000px;top:0;width:640px";
   render();
-  const p = document.getElementById("paper"), sc=document.getElementById("scaler");
-  const prev=sc.style.transform; sc.style.transform="none";
-  try{ return await html2canvas(p,{scale:3,backgroundColor:"#ffffff"}); }
-  finally{ sc.style.transform=prev; }
+  const sc=document.getElementById("scaler"), prev=sc.style.transform; sc.style.transform="none";
+  const done=()=>{ sc.style.transform=prev; if(hidden) pv.style.cssText=""; fit(); };
+  try{ const r=fn(document.getElementById("paper")); if(r && r.then) return r.finally(done); done(); return r; }
+  catch(e){ done(); throw e; }
+}
+async function snap(){
+  if(!window.html2canvas) throw new Error("html2canvas not loaded");
+  return withPaper(p=>html2canvas(p,{scale:3,backgroundColor:"#ffffff"}));
 }
 async function deliver(name, blob){
   if(downloads){
     try{ await downloads.save({filename:name,data:blob}); toast("บันทึกแล้ว"); return; }
     catch(e){ if(e && e.code==="declined") return; }
   }
-  // fallback: open blob in page
   try{
-    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; a.click();
+    const url=URL.createObjectURL(blob), a=document.createElement("a");
+    a.href=url; a.download=name; a.style.display="none"; document.body.appendChild(a); a.click();
+    setTimeout(()=>{ a.remove(); URL.revokeObjectURL(url); },30000);
+    toast("บันทึกแล้ว · ดูในโฟลเดอร์ Download");
   }catch(e){ toast("อุปกรณ์นี้บันทึกไฟล์ไม่ได้"); }
 }
+
+/* ---------- print: one form on the top-left quarter of A4 (A6) ---------- */
+const MM=96/25.4;
+async function quarterPdf(){
+  const c=await snap(); const { jsPDF } = window.jspdf;
+  const pdf=new jsPDF({unit:"mm",format:"a4",orientation:"portrait"});
+  const maxW=99, maxH=142.5; let w=maxW, h=w*c.height/c.width; if(h>maxH){ h=maxH; w=h*c.width/c.height; }
+  pdf.addImage(c.toDataURL("image/png"),"PNG",3,3,w,h);
+  pdf.setLineDashPattern([2,2],0); pdf.setDrawColor(150); pdf.setLineWidth(0.2);
+  pdf.line(105,0,105,148.5); pdf.line(0,148.5,105,148.5);
+  return pdf;
+}
+document.getElementById("bPrint").onclick=async()=>{
+  if(downloads){ // inside Claude: the viewer can't open the print dialog, so give a ready-to-print PDF
+    toast("กำลังสร้างไฟล์ปริ้น…");
+    try{ deliver(fname("pdf").replace(".pdf","_print.pdf"), (await quarterPdf()).output("blob")); }
+    catch(e){ toast("สร้างไฟล์ปริ้นไม่สำเร็จ"); }
+    return;
+  }
+  withPaper(p=>{
+    const area=document.getElementById("printArea");
+    const clone=p.cloneNode(true); clone.removeAttribute("id"); clone.className="pp";
+    clone.style.cssText="width:"+p.offsetWidth+"px;padding:0;background:#fff";
+    const k=Math.min((105-6)*MM/p.offsetWidth, (148.5-6)*MM/(p.offsetHeight-28));
+    clone.style.transform="scale("+k+")";
+    // copy paper styles: they are scoped to #paper
+    clone.querySelectorAll("table").forEach(t=>{ t.style.cssText="width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px;font-family:Arial,sans-serif;color:#000"; });
+    clone.querySelectorAll("td").forEach(td=>{
+      const cs=getComputedStyle(p.querySelector(`tr:nth-child(${td.parentNode.rowIndex+1}) td:nth-child(${td.cellIndex+1})`)||td);
+      td.style.border="1px solid #000"; td.style.padding=cs.padding; td.style.height=cs.height;
+      td.style.verticalAlign=cs.verticalAlign; td.style.whiteSpace=cs.whiteSpace; td.style.overflow="hidden";
+      td.style.textAlign=cs.textAlign; td.style.fontWeight=cs.fontWeight; td.style.fontSize=cs.fontSize;
+    });
+    clone.querySelectorAll(".v").forEach(x=>{ x.style.fontWeight="bold"; x.style.color="#0b3a8c"; });
+    // use the spare height for the SEC note boxes
+    const spare=(148.5-6)*MM/k-(p.offsetHeight-28)-4;
+    if(spare>0) clone.querySelectorAll("td.tall").forEach(td=>{ td.style.height=(parseFloat(td.style.height)+spare/2)+"px"; });
+    area.innerHTML=""; area.appendChild(clone);
+  });
+  setTimeout(()=>{ try{ window.print(); }catch(e){ toast("เบราว์เซอร์นี้ปริ้นไม่ได้"); } },50);
+};
 document.getElementById("bPng").onclick=async()=>{
   toast("กำลังสร้างรูป…");
   try{

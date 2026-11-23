@@ -9,6 +9,7 @@ Mobile web app for filling in the cabin crew Flight Information Form.
 - **Cockpit & crew** list with positions and IDs
 - **Paper-style preview** matching the printed form
 - **Save as PNG or PDF**
+- **Print** one form on a quarter of A4 (A6, top-left corner with cut lines)
 - **Auto-fill from screenshots** of the roster app (Duty Detail / Flight Detail). Reads the text on the phone with Tesseract.js OCR (the first run downloads about 10 MB). When opened as a Claude artifact, Claude reads the images instead. Use clean screenshots with no drawing on them.
 - Form is saved in the browser (localStorage)
 
