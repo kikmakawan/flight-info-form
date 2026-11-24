@@ -1,5 +1,5 @@
 // Offline cache for the Flight Information Form app.
-const CACHE = "flight-form-v4";
+const CACHE = "flight-form-v5";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e => {
